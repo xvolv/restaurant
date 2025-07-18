@@ -1,7 +1,7 @@
 import React from "react";
 import { X, CheckCircle, AlertCircle } from "lucide-react";
 import { useTheme, themes } from "../../contexts/ThemeContext";
-import { Reservation, timeSlots } from "./types/reservation";
+import { Reservation, timeSlots } from "./types/Reservation";
 
 interface ReservationModalsProps {
   mode: string;
@@ -227,6 +227,9 @@ const ReservationModals: React.FC<ReservationModalsProps> = ({
                     : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"
                 }`}
               />
+              <div className="text-xs text-gray-500 mt-1">
+                Examples: "Birthday setup", "Window table", "Wheelchair access", "High chair needed"
+              </div>
               <div className="flex justify-end space-x-4 mt-6">
                 <button
                   onClick={() => setShowNewReservation(false)}
@@ -430,6 +433,9 @@ const ReservationModals: React.FC<ReservationModalsProps> = ({
                     : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500"
                 }`}
               />
+              <div className="text-xs text-gray-500 mt-1">
+                Examples: "Birthday setup", "Window table", "Wheelchair access", "High chair needed"
+              </div>
               <div className="flex justify-end space-x-4 mt-6">
                 <button
                   onClick={() => setShowEditModal(false)}

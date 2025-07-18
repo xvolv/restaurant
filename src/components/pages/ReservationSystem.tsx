@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FixedSizeGrid as Grid, GridChildComponentProps } from "react-window";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Star, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme, themes } from "../../contexts/ThemeContext";
 import {
@@ -384,7 +384,113 @@ const ReservationSystem: React.FC = () => {
               Reservations
             </div>
           </div>
+
+          <div className="text-center">
+            <div className={`text-lg font-bold text-yellow-600`}>
+              {filteredReservations.filter((r) => r.specialRequests).length}
+            </div>
+            <div
+              className={`text-xs ${
+                mode === "dark" ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
+              Special Requests
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Staff Dashboard Summary */}
+      <div
+        className={`p-6 ${
+          mode === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        } border rounded-xl shadow-lg`}
+      >
+        <h3
+          className={`text-lg font-semibold mb-4 ${
+            mode === "dark" ? "text-white" : "text-gray-900"
+          }`}
+        >
+          Staff Dashboard -{" "}
+          {selectedDate
+            ? new Date(selectedDate).toLocaleDateString()
+            : "Today's"}{" "}
+          Overview
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="text-center p-3 bg-yellow-50 rounded-lg">
+            <div className="text-2xl mb-1">⏳</div>
+            <div className="text-lg font-bold text-yellow-600">
+              {
+                filteredReservations.filter((r) => r.status === "pending")
+                  .length
+              }
+            </div>
+            <div className="text-xs text-yellow-700">Pending</div>
+          </div>
+          <div className="text-center p-3 bg-green-50 rounded-lg">
+            <div className="text-2xl mb-1">✅</div>
+            <div className="text-lg font-bold text-green-600">
+              {
+                filteredReservations.filter((r) => r.status === "confirmed")
+                  .length
+              }
+            </div>
+            <div className="text-xs text-green-700">Confirmed</div>
+          </div>
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-2xl mb-1">🪑</div>
+            <div className="text-lg font-bold text-blue-600">
+              {filteredReservations.filter((r) => r.status === "seated").length}
+            </div>
+            <div className="text-xs text-blue-700">Seated</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-2xl mb-1">✔️</div>
+            <div className="text-lg font-bold text-gray-600">
+              {
+                filteredReservations.filter((r) => r.status === "completed")
+                  .length
+              }
+            </div>
+            <div className="text-xs text-gray-700">Completed</div>
+          </div>
+          <div className="text-center p-3 bg-red-50 rounded-lg">
+            <div className="text-2xl mb-1">❌</div>
+            <div className="text-lg font-bold text-red-600">
+              {
+                filteredReservations.filter((r) => r.status === "cancelled")
+                  .length
+              }
+            </div>
+            <div className="text-xs text-red-700">Cancelled</div>
+          </div>
+        </div>
+
+        {/* Special Requests Alert */}
+        {filteredReservations.filter(
+          (r) =>
+            r.specialRequests &&
+            (r.status === "confirmed" || r.status === "pending")
+        ).length > 0 && (
+          <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
+              <span className="font-semibold text-yellow-800">
+                {
+                  filteredReservations.filter(
+                    (r) =>
+                      r.specialRequests &&
+                      (r.status === "confirmed" || r.status === "pending")
+                  ).length
+                }{" "}
+                reservations have special requests requiring attention
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reservations List */}

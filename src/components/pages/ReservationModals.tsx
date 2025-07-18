@@ -1,7 +1,7 @@
 import React from "react";
 import { X, CheckCircle, AlertCircle } from "lucide-react";
 import { useTheme, themes } from "../../contexts/ThemeContext";
-import { Reservation, timeSlots } from "./types/Reservation";
+import { Reservation } from "./types/Reservation";
 
 interface ReservationModalsProps {
   mode: string;

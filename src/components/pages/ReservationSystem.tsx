@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { FixedSizeGrid as Grid, GridChildComponentProps } from "react-window";
-import { Plus, Search, Filter, Star, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme, themes } from "../../contexts/ThemeContext";
 import {
@@ -8,12 +7,12 @@ import {
   tables,
   timeSlots,
   getEstimatedDuration,
-  isTimeSlotAvailable,
   getAvailableTimeSlots,
   assignTable,
 } from "./types/Reservation";
 import ReservationCard from "./ReservationCard";
 import ReservationModals from "./ReservationModals";
+import TableLayout from "./TableLayout";
 
 const ReservationSystem: React.FC = () => {
   const { t } = useTranslation();
@@ -27,6 +26,11 @@ const ReservationSystem: React.FC = () => {
   const [editingReservation, setEditingReservation] =
     useState<Reservation | null>(null);
   const [lastCreatedReservation, setLastCreatedReservation] =
+    useState<Reservation | null>(null);
+
+  // Check-In modal state
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [checkInReservation, setCheckInReservation] =
     useState<Reservation | null>(null);
 
   // Filter states
@@ -61,18 +65,6 @@ const ReservationSystem: React.FC = () => {
       guests: 2,
       status: "pending",
       estimatedDuration: 60,
-    },
-    {
-      id: "3",
-      customerName: "ሙሉጌታ ተስፋዬ",
-      customerPhone: "+251933345678",
-      customerEmail: "mulugeta@email.com",
-      date: "2024-01-16",
-      time: "18:30",
-      guests: 6,
-      tableNumber: 8,
-      status: "seated",
-      estimatedDuration: 120,
     },
   ]);
 
@@ -209,6 +201,25 @@ const ReservationSystem: React.FC = () => {
     setShowEditModal(true);
   };
 
+  // Handler for opening check-in modal
+  const handleCheckInClick = (reservation: Reservation) => {
+    setCheckInReservation(reservation);
+    setShowCheckInModal(true);
+  };
+
+  // Handler to confirm check-in
+  const handleConfirmCheckIn = () => {
+    if (checkInReservation) {
+      setReservations((prev) =>
+        prev.map((res) =>
+          res.id === checkInReservation.id ? { ...res, status: "seated" } : res
+        )
+      );
+    }
+    setShowCheckInModal(false);
+    setCheckInReservation(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -238,64 +249,8 @@ const ReservationSystem: React.FC = () => {
         </button>
       </div>
 
-      {/* Table Layout Visualization */}
-      <div
-        className={`p-6 ${
-          mode === "dark"
-            ? "bg-gray-800 border-gray-700"
-            : "bg-white border-gray-200"
-        } border rounded-xl shadow-lg`}
-      >
-        <h3
-          className={`text-lg font-semibold mb-4 ${
-            mode === "dark" ? "text-white" : "text-gray-900"
-          }`}
-        >
-          Table Layout -{" "}
-          {selectedDate ? new Date(selectedDate).toLocaleDateString() : "Today"}
-        </h3>
-
-        <div style={{ width: "100%", height: 400 }}>
-          <Grid
-            columnCount={5}
-            columnWidth={180}
-            height={400}
-            rowCount={Math.ceil(tables.length / 5)}
-            rowHeight={120}
-            width={920}
-          >
-            {({ columnIndex, rowIndex, style }: GridChildComponentProps) => {
-              const tableIndex =
-                (rowIndex as number) * 5 + (columnIndex as number);
-              if (tableIndex >= tables.length) return null;
-              const table = tables[tableIndex];
-              const isOccupied = reservations.some(
-                (res) =>
-                  res.date === selectedDate &&
-                  res.tableNumber === table.id &&
-                  (res.status === "confirmed" || res.status === "seated")
-              );
-              return (
-                <div
-                  key={table.id}
-                  style={style}
-                  className={`p-4 m-2 rounded-lg border-2 text-center transition-all duration-200 ${
-                    isOccupied
-                      ? "border-red-300 bg-red-50 text-red-700"
-                      : "border-green-300 bg-green-50 text-green-700"
-                  }`}
-                >
-                  <div className="font-semibold">Table {table.id}</div>
-                  <div className="text-sm">Seats {table.capacity}</div>
-                  <div className="text-xs mt-1">
-                    {isOccupied ? "Occupied" : "Available"}
-                  </div>
-                </div>
-              );
-            }}
-          </Grid>
-        </div>
-      </div>
+      {/* Table Layout */}
+      <TableLayout reservations={reservations} mode={mode} />
 
       {/* Filters */}
       <div
@@ -502,6 +457,7 @@ const ReservationSystem: React.FC = () => {
             mode={mode}
             onEdit={openEditModal}
             onStatusUpdate={updateReservationStatus}
+            onCheckIn={handleCheckInClick} // <-- new prop
           />
         ))}
       </div>
@@ -528,6 +484,79 @@ const ReservationSystem: React.FC = () => {
         lastCreatedReservation={lastCreatedReservation}
         setLastCreatedReservation={setLastCreatedReservation}
       />
+
+      {showCheckInModal && checkInReservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div
+            className={`w-full max-w-md ${
+              mode === "dark" ? "bg-gray-800" : "bg-white"
+            } rounded-2xl shadow-2xl overflow-hidden`}
+          >
+            <div
+              className={`px-6 py-4 bg-gradient-to-r ${currentTheme.primary} text-white`}
+            >
+              <h2 className="text-xl font-bold">Confirm Check-In</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">Guest:</span>
+                  <span
+                    className={mode === "dark" ? "text-white" : "text-gray-900"}
+                  >
+                    {checkInReservation.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Party Size:</span>
+                  <span
+                    className={mode === "dark" ? "text-white" : "text-gray-900"}
+                  >
+                    {checkInReservation.guests}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Table:</span>
+                  <span
+                    className={mode === "dark" ? "text-white" : "text-gray-900"}
+                  >
+                    {checkInReservation.tableNumber || "Not assigned"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Reservation Time:</span>
+                  <span
+                    className={mode === "dark" ? "text-white" : "text-gray-900"}
+                  >
+                    {checkInReservation.time}
+                  </span>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCheckInModal(false);
+                    setCheckInReservation(null);
+                  }}
+                  className={`px-6 py-2 border rounded-lg font-medium transition-colors ${
+                    mode === "dark"
+                      ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCheckIn}
+                  className={`px-6 py-2 bg-gradient-to-r ${currentTheme.primary} text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200`}
+                >
+                  Confirm Check-In
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

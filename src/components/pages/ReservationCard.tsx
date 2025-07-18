@@ -17,6 +17,7 @@ interface ReservationCardProps {
   mode: string;
   onEdit: (reservation: Reservation) => void;
   onStatusUpdate: (id: string, status: Reservation["status"]) => void;
+  onCheckIn?: (reservation: Reservation) => void;
 }
 
 const ReservationCard: React.FC<ReservationCardProps> = ({
@@ -24,6 +25,7 @@ const ReservationCard: React.FC<ReservationCardProps> = ({
   mode,
   onEdit,
   onStatusUpdate,
+  onCheckIn,
 }) => {
   const { theme } = useTheme();
   const currentTheme = themes[theme];
@@ -285,7 +287,11 @@ const ReservationCard: React.FC<ReservationCardProps> = ({
           )}
           {reservation.status === "confirmed" && (
             <button
-              onClick={() => onStatusUpdate(reservation.id, "seated")}
+              onClick={() =>
+                onCheckIn
+                  ? onCheckIn(reservation)
+                  : onStatusUpdate(reservation.id, "seated")
+              }
               className={`flex-1 py-2 px-3 bg-gradient-to-r ${currentTheme.primary} text-white rounded-lg text-sm font-medium hover:shadow-md transition-all duration-200`}
             >
               Seat

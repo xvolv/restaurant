@@ -13,19 +13,21 @@ import OrderSystem from './components/pages/OrderSystem';
 import ReservationSystem from './components/pages/ReservationSystem';
 
 const AppContent: React.FC = () => {
+
   const { isAuthenticated, user } = useAuth();
   const { mode } = useTheme();
   const { t } = useTranslation();
   const [activePage, setActivePage] = useState('dashboard');
   const dashboardTitle = t('dashboard.title');
-
   if (!isAuthenticated) {
     return <LoginPage />;
   }
 
   return (
     <div className={`flex h-screen ${mode === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} transition-colors duration-300`}>
+      
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header activePage={activePage} />
         <main className="flex-1 overflow-auto">

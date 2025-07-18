@@ -18,6 +18,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
+  
   const { user, logout } = useAuth();
   const { theme, mode, toggleMode } = useTheme();
   const { t } = useTranslation();

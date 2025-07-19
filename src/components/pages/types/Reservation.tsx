@@ -1,8 +1,24 @@
 // Types and constants for the reservation system
+
 export interface Table {
   id: number;
   capacity: number;
   isAvailable: boolean;
+}
+
+// Customer feedback interface
+export interface CustomerFeedback {
+  id: string;
+  reservationId: string;
+  customerName: string;
+  customerEmail: string;
+  rating: number; // 1-5 stars
+  serviceRating?: number; // 1-5 stars for service
+  foodRating?: number; // 1-5 stars for food
+  comments?: string;
+  preferences?: string[]; // dietary preferences, seating preferences, etc.
+  submittedAt: Date;
+  status: "pending" | "submitted" | "skipped";
 }
 
 export interface Reservation {
@@ -17,6 +33,8 @@ export interface Reservation {
   status: "confirmed" | "pending" | "seated" | "completed" | "cancelled";
   specialRequests?: string;
   estimatedDuration?: number; // in minutes
+  feedbackRequested?: boolean; // track if feedback was requested
+  feedbackId?: string; // link to feedback if submitted
 }
 
 export const timeSlots = [

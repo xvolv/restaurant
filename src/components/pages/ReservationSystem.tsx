@@ -1,9 +1,18 @@
-import React, { useState } from "react";
-import { Plus, Search, Filter, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Search,
+  Filter,
+  AlertTriangle,
+  Archive,
+  Clock,
+  CheckCircle,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTheme, themes } from "../../contexts/ThemeContext";
 import {
   Reservation,
+  CustomerFeedback,
   tables,
   timeSlots,
   getEstimatedDuration,
@@ -39,6 +48,10 @@ const ReservationSystem: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+
+  // New state for view toggle
+  const [viewMode, setViewMode] = useState<"active" | "archived">("active");
+  const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(false); // Default to OFF
 
   // Reservation data
   const [reservations, setReservations] = useState<Reservation[]>([
@@ -79,7 +92,7 @@ const ReservationSystem: React.FC = () => {
     specialRequests: "",
   });
 
-  // Filtered reservations
+  // Enhanced filtered reservations with view mode
   const filteredReservations = reservations.filter((reservation) => {
     const matchesSearch =
       reservation.customerName
@@ -89,7 +102,20 @@ const ReservationSystem: React.FC = () => {
     const matchesStatus =
       statusFilter === "all" || reservation.status === statusFilter;
     const matchesDate = !selectedDate || reservation.date === selectedDate;
-    return matchesSearch && matchesStatus && matchesDate;
+
+    // Filter by view mode
+    const isCompleted =
+      reservation.status === "completed" || reservation.status === "cancelled";
+    const matchesViewMode =
+      viewMode === "archived" ? isCompleted : !isCompleted;
+
+    return matchesSearch && matchesStatus && matchesDate && matchesViewMode;
+  });
+
+  // Dashboard counts - should show ALL reservations for the selected date (not filtered by view mode)
+  const dashboardReservations = reservations.filter((reservation) => {
+    const matchesDate = !selectedDate || reservation.date === selectedDate;
+    return matchesDate;
   });
 
   // Available time slots
@@ -111,6 +137,45 @@ const ReservationSystem: React.FC = () => {
         editingReservation.id
       )
     : timeSlots;
+
+  // Auto-completion effect
+  useEffect(() => {
+    if (!autoCompleteEnabled) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
+      const currentDate = now.toISOString().split("T")[0];
+
+      setReservations((prev) =>
+        prev.map((reservation) => {
+          if (
+            reservation.status !== "seated" ||
+            reservation.date !== currentDate
+          ) {
+            return reservation;
+          }
+
+          // Calculate if reservation should be auto-completed
+          const [hours, minutes] = reservation.time.split(":").map(Number);
+          const reservationTime = hours * 60 + minutes;
+          const estimatedDuration =
+            reservation.estimatedDuration ||
+            getEstimatedDuration(reservation.guests);
+          const expectedEndTime = reservationTime + estimatedDuration;
+
+          // Auto-complete if 15 minutes past estimated end time
+          if (currentTime > expectedEndTime + 15) {
+            return { ...reservation, status: "completed" as const };
+          }
+
+          return reservation;
+        })
+      );
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [autoCompleteEnabled]);
 
   // Event handlers
   const handleCreateReservation = () => {
@@ -220,9 +285,60 @@ const ReservationSystem: React.FC = () => {
     setCheckInReservation(null);
   };
 
+  // Handler to manually mark as completed and trigger feedback
+  const handleMarkCompleted = (id: string) => {
+    const reservation = reservations.find((r) => r.id === id);
+    if (!reservation) return;
+
+    // Mark reservation as completed
+    updateReservationStatus(id, "completed");
+
+    // Trigger feedback request (simulate email sending)
+    triggerFeedbackRequest(reservation);
+  };
+
+  // Simulate email feedback request
+  const triggerFeedbackRequest = (reservation: Reservation) => {
+    // Generate unique feedback link
+    const feedbackLink = `${window.location.origin}/feedback/${reservation.id}`;
+
+    // In a real implementation, this would send actual email
+    console.log(`📧 Feedback email sent to: ${reservation.customerEmail}`);
+    console.log(
+      `📧 Email Subject: Thank you for dining with us! Share your feedback`
+    );
+    console.log(`📧 Email Content:`);
+    console.log(`   Dear ${reservation.customerName},`);
+    console.log(
+      `   Thank you for dining with us on ${new Date(
+        reservation.date
+      ).toLocaleDateString()}.`
+    );
+    console.log(`   We'd love to hear about your experience!`);
+    console.log(`   Please click the link below to share your feedback:`);
+    console.log(`   ${feedbackLink}`);
+    console.log(
+      `   This will only take 2 minutes and helps us improve our service.`
+    );
+    console.log(`   Thank you!`);
+
+    // Show success notification to staff
+    alert(`✅ Feedback request sent to ${reservation.customerName} via email!`);
+
+    // Note: In production, you would integrate with email service like:
+    // - SendGrid, Mailgun, AWS SES, etc.
+    //
+    // Example integration:
+    // await emailService.send({
+    //   to: reservation.customerEmail,
+    //   subject: "Thank you for dining with us! Share your feedback",
+    //   html: feedbackEmailTemplate(reservation, feedbackLink)
+    // });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with View Toggle */}
       <div className="flex items-center justify-between">
         <div>
           <h1
@@ -237,20 +353,114 @@ const ReservationSystem: React.FC = () => {
               mode === "dark" ? "text-gray-400" : "text-gray-600"
             } mt-1`}
           >
-            Manage table reservations and bookings
+            {viewMode === "active"
+              ? "Manage active table reservations and bookings"
+              : "View completed and cancelled reservations"}
           </p>
         </div>
-        <button
-          onClick={() => setShowNewReservation(true)}
-          className={`flex items-center space-x-2 px-6 py-3 bg-gradient-to-r ${currentTheme.primary} text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105`}
-        >
-          <Plus className="w-5 h-5" />
-          <span>New Reservation</span>
-        </button>
+        <div className="flex items-center space-x-4">
+          {/* View Mode Toggle */}
+          <div
+            className={`flex rounded-lg p-1 ${
+              mode === "dark" ? "bg-gray-700" : "bg-gray-100"
+            }`}
+          >
+            <button
+              onClick={() => setViewMode("active")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                viewMode === "active"
+                  ? `bg-gradient-to-r ${currentTheme.primary} text-white shadow-md`
+                  : mode === "dark"
+                  ? "text-gray-300 hover:text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <CheckCircle className="w-4 h-4 inline mr-2" />
+              Active
+            </button>
+            <button
+              onClick={() => setViewMode("archived")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                viewMode === "archived"
+                  ? `bg-gradient-to-r ${currentTheme.primary} text-white shadow-md`
+                  : mode === "dark"
+                  ? "text-gray-300 hover:text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Archive className="w-4 h-4 inline mr-2" />
+              Archive
+            </button>
+          </div>
+
+          {viewMode === "active" && (
+            <button
+              onClick={() => setShowNewReservation(true)}
+              className={`flex items-center space-x-2 px-6 py-3 bg-gradient-to-r ${currentTheme.primary} text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105`}
+            >
+              <Plus className="w-5 h-5" />
+              <span>New Reservation</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Table Layout */}
-      <TableLayout reservations={reservations} mode={mode} />
+      {/* Auto-completion Settings (only show for active view) */}
+      {viewMode === "active" && (
+        <div
+          className={`p-4 ${
+            mode === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } border rounded-xl shadow-lg`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Clock
+                className={`w-5 h-5 ${
+                  mode === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
+              />
+              <div>
+                <h3
+                  className={`font-medium ${
+                    mode === "dark" ? "text-white" : "text-gray-900"
+                  }`}
+                >
+                  Auto-Completion (Optional)
+                </h3>
+                <p
+                  className={`text-sm ${
+                    mode === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  Backup feature: Auto-mark as completed 30 minutes after
+                  estimated end time. Feedback emails sent automatically.
+                </p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoCompleteEnabled}
+                onChange={(e) => setAutoCompleteEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Table Layout (only for active reservations) */}
+      {viewMode === "active" && (
+        <TableLayout
+          reservations={reservations.filter(
+            (r) => r.status !== "completed" && r.status !== "cancelled"
+          )}
+          mode={mode}
+        />
+      )}
 
       {/* Filters */}
       <div
@@ -379,7 +589,7 @@ const ReservationSystem: React.FC = () => {
             <div className="text-2xl mb-1">⏳</div>
             <div className="text-lg font-bold text-yellow-600">
               {
-                filteredReservations.filter((r) => r.status === "pending")
+                dashboardReservations.filter((r) => r.status === "pending")
                   .length
               }
             </div>
@@ -389,7 +599,7 @@ const ReservationSystem: React.FC = () => {
             <div className="text-2xl mb-1">✅</div>
             <div className="text-lg font-bold text-green-600">
               {
-                filteredReservations.filter((r) => r.status === "confirmed")
+                dashboardReservations.filter((r) => r.status === "confirmed")
                   .length
               }
             </div>
@@ -398,25 +608,26 @@ const ReservationSystem: React.FC = () => {
           <div className="text-center p-3 bg-blue-50 rounded-lg">
             <div className="text-2xl mb-1">🪑</div>
             <div className="text-lg font-bold text-blue-600">
-              {filteredReservations.filter((r) => r.status === "seated").length}
+              {
+                dashboardReservations.filter((r) => r.status === "seated")
+                  .length
+              }
             </div>
             <div className="text-xs text-blue-700">Seated</div>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl mb-1">✔️</div>
             <div className="text-lg font-bold text-gray-600">
               {
-                filteredReservations.filter((r) => r.status === "completed")
+                dashboardReservations.filter((r) => r.status === "completed")
                   .length
               }
             </div>
             <div className="text-xs text-gray-700">Completed</div>
           </div>
           <div className="text-center p-3 bg-red-50 rounded-lg">
-            <div className="text-2xl mb-1">❌</div>
             <div className="text-lg font-bold text-red-600">
               {
-                filteredReservations.filter((r) => r.status === "cancelled")
+                dashboardReservations.filter((r) => r.status === "cancelled")
                   .length
               }
             </div>
@@ -425,7 +636,7 @@ const ReservationSystem: React.FC = () => {
         </div>
 
         {/* Special Requests Alert */}
-        {filteredReservations.filter(
+        {dashboardReservations.filter(
           (r) =>
             r.specialRequests &&
             (r.status === "confirmed" || r.status === "pending")
@@ -435,7 +646,7 @@ const ReservationSystem: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
               <span className="font-semibold text-yellow-800">
                 {
-                  filteredReservations.filter(
+                  dashboardReservations.filter(
                     (r) =>
                       r.specialRequests &&
                       (r.status === "confirmed" || r.status === "pending")
@@ -457,7 +668,8 @@ const ReservationSystem: React.FC = () => {
             mode={mode}
             onEdit={openEditModal}
             onStatusUpdate={updateReservationStatus}
-            onCheckIn={handleCheckInClick} // <-- new prop
+            onCheckIn={handleCheckInClick}
+            onMarkCompleted={handleMarkCompleted}
           />
         ))}
       </div>
